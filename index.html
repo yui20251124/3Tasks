@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>5秒スイッチ</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo-5s-wrapper">
+      <div class="logo-5s">
+        <div class="logo-5s__icon">
+          <span class="logo-5s__number">5</span>
+        </div>
+        <div class="logo-5s__text">
+          <span class="logo-5s__title">5秒スイッチ</span>
+          <span class="logo-5s__tagline">着手のスイッチを5秒でONに</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ① タスク選択画面 -->
+    <section id="selectScreen">
+      <p class="section-title">どれからスイッチ入れてみる？</p>
+      <p class="description">
+        「完璧に終わらせる」じゃなくて、<br>
+        とりあえず15秒だけ手をつけてみる用のアプリです。
+      </p>
+
+      <div class="task-list">
+        <button class="task-card" data-task="メールを1通だけ返す" data-level="hard">
+          <div class="task-card__main">
+            <span class="task-card__title">メールを1通だけ返す</span>
+            <span class="task-card__level task-card__level--hard">ハード</span>
+          </div>
+          <span class="task-card__chevron">›</span>
+        </button>
+
+        <button class="task-card" data-task="デスクの上を少し片づける" data-level="medium">
+          <div class="task-card__main">
+            <span class="task-card__title">デスクの上を少し片づける</span>
+            <span class="task-card__level task-card__level--medium">ミディアム</span>
+          </div>
+          <span class="task-card__chevron">›</span>
+        </button>
+
+        <button class="task-card" data-task="明日の予定を確認する" data-level="easy">
+          <div class="task-card__main">
+            <span class="task-card__title">明日の予定を確認する</span>
+            <span class="task-card__level task-card__level--easy">イージー</span>
+          </div>
+          <span class="task-card__chevron">›</span>
+        </button>
+      </div>
+
+      <p class="small-note">※あとで自分のタスクを入力できるフォームにも変えられるよ。</p>
+    </section>
+
+    <!-- ② 5秒カウントダウン -->
+    <section id="countdownScreen" class="hidden center">
+      <p class="message">今は何もしなくてOK。<br>深呼吸だけしてて大丈夫。</p>
+      <div class="timer-number" id="countdownNum">5</div>
+      <p class="small-note">あと5秒で「着手のスイッチ」が入るよ。</p>
+    </section>
+
+    <!-- ③ 15秒スプリント -->
+    <section id="sprintScreen" class="hidden center">
+      <p id="currentTaskLabel" class="message"></p>
+      <div class="ring">
+        <div class="ring-inner">
+          <span class="timer-number" id="sprintNum">15</span>
+        </div>
+      </div>
+      <p class="message">この <span class="highlight">15秒だけ</span>、そのことだけ考えればOK。</p>
+      <button class="btn" id="doneBtn">完了！</button>
+      <p class="small-note">完璧に終わらなくて大丈夫。「手をつけられた」が100点満点。</p>
+    </section>
+
+    <!-- ④ 達成画面 -->
+    <section id="doneScreen" class="hidden center">
+      <p id="doneMessage" class="message"></p>
+      <p class="points">きょうのポイント：<span id="rewardAmount">0</span> pt</p>
+      <button class="btn" id="moreBtn">もう一回スイッチ入れてみる</button>
+      <button class="btn btn-secondary" id="finishBtn">今日はここまで</button>
+    </section>
+
+    <!-- ⑤ 終了画面 -->
+    <section id="finishScreen" class="hidden center">
+      <p id="finalAmountText" class="message"></p>
+      <p class="message">またあした</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>
