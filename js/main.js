@@ -1,56 +1,194 @@
-// 3tasks - 5秒 → 90秒 → 選択 → フォーカスタイマー
+// 3tasks: 5秒カウント → 3分タイマー → Done → 履歴保存＆今日のカウント更新
 document.addEventListener("DOMContentLoaded", () => {
   const $ = (id) => document.getElementById(id);
 
-  // ===== 画面 =====
+  // 画面
   const selectScreen    = $("selectScreen");
   const countdownScreen = $("countdownScreen");
-  const warmupScreen    = $("warmupScreen");
-  const decisionScreen  = $("decisionScreen");
-  const focusScreen     = $("focusScreen");
+  const sprintScreen    = $("sprintScreen");
+  const doneScreen      = $("doneScreen");
+  const historyScreen   = $("historyScreen");
 
-  // ===== 入力・ボタン =====
-  const task1Input  = $("task1Input");
-  const task2Input  = $("task2Input");
-  const task3Input  = $("task3Input");
-  const startBtn    = $("startBtn");
-  const taskPreview = $("taskPreview");
+  // タブ
+  const tabToday   = $("tabToday");
+  const tabHistory = $("tabHistory");
 
-  // 5秒カウント
-  const countdownTaskLabel = $("countdownTaskLabel");
-  const countdownNumEl     = $("countdownNum");
+  // 入力
+  const task1Input = $("task1Input");
+  const task2Input = $("task2Input");
+  const task3Input = $("task3Input");
+  const startBtn   = $("startTasksBtn");
+  const taskListEl = $("taskList");
 
-  // 90秒タイマー
-  const warmupTaskLabel = $("warmupTaskLabel");
-  const warmupTimeEl    = $("warmupTime");
+  // カウントダウン
+  const countdownNumEl   = $("countdownNum");
+  const countdownLabelEl = $("countdownLabel");
 
-  // 選択画面
-  const decisionMessageEl = $("decisionMessage");
-  const stopHereBtn       = $("stopHereBtn");
-  const continueBtn       = $("continueBtn");
-  const endBtn            = $("endBtn");
+  // 3分タイマー
+  const currentTaskLabel = $("currentTaskLabel");
+  const sprintNumEl      = $("sprintNum");
+  const doneBtn          = $("doneBtn");
 
-  // フォーカスタイマー
-  const focusTaskLabel    = $("focusTaskLabel");
-  const focusTimeEl       = $("focusTime");
-  const focusStartBtn     = $("focusStartBtn");
-  const focusBackBtn      = $("focusBackBtn");
-  const focusDurationBtns = document.querySelectorAll(".focus-duration-btn");
+  // 完了画面
+  const doneMessageEl  = $("doneMessage");
+  const rewardAmountEl = $("rewardAmount"); // 今日完了したタスク数
+  const moreBtn        = $("moreBtn");
+  const finishBtn      = $("finishBtn");
 
-  // ===== 状態 =====
+  // 履歴画面
+  const historyListEl   = $("historyList");
+  const clearHistoryBtn = $("clearHistoryBtn");
+
+  // 音源
+  const countdownAudio   = $("countdownAudio");
+  const minuteMarkAudio  = $("minuteMarkAudio");
+  const under1AlarmAudio = $("under1AlarmAudio");
+
+  // 状態
+  let tasks = ["", "", ""];
+  let currentIndex = 0;
   let currentTaskTitle = "";
   let countdownTimerId = null;
-  let warmupTimerId    = null;
-  let focusTimerId     = null;
-  let warmupRemaining  = 0;
-  let focusRemaining   = 0;
-  let focusMinutes     = 15; // デフォルトは15分
+  let sprintTimerId    = null;
+  let sprintRemaining  = 0; // 秒
 
-  // ===== 共通ヘルパー =====
-  function showScreen(target) {
-    [selectScreen, countdownScreen, warmupScreen, decisionScreen, focusScreen]
-      .forEach(sec => sec.classList.add("hidden"));
-    target.classList.remove("hidden");
+  // 今日のタスク完了カウント（1タスク = 1カウント）
+  const HISTORY_KEY = "threeTasks_history_v1";
+  const POINTS_KEY  = "threeTasks_points_v1"; // 今日の完了数
+
+  let pointsState = {
+    date: "",   // "YYYY-MM-DD"
+    count: 0,   // 今日完了したタスク数
+  };
+
+  // -------------------------------------------------------------------
+  // 日付ヘルパー（日本時間前提：ユーザーが日本なら localTime でOK）
+  // -------------------------------------------------------------------
+  function getTodayString() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function loadPoints() {
+    const today = getTodayString();
+    try {
+      const raw = localStorage.getItem(POINTS_KEY);
+      if (!raw) {
+        pointsState = { date: today, count: 0 };
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (data.date === today) {
+        pointsState = { date: data.date, count: data.count ?? 0 };
+      } else {
+        // 日付が変わっていたらリセット
+        pointsState = { date: today, count: 0 };
+      }
+    } catch {
+      pointsState = { date: today, count: 0 };
+    }
+  }
+
+  function savePoints() {
+    localStorage.setItem(POINTS_KEY, JSON.stringify(pointsState));
+  }
+
+  function ensureTodayPoints() {
+    const today = getTodayString();
+    if (pointsState.date !== today) {
+      pointsState.date = today;
+      pointsState.count = 0;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // 履歴（半年保持）
+  // -------------------------------------------------------------------
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory(list) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  }
+
+  function addHistoryEntry(taskTitle) {
+    const now = new Date();
+    const history = loadHistory();
+
+    history.push({
+      title: taskTitle,
+      startedAt: now.toISOString(),
+    });
+
+    // 半年以上前を削除
+    const HALF = 1000 * 60 * 60 * 24 * 180;
+    const cutoff = now.getTime() - HALF;
+
+    const trimmed = history.filter((h) => {
+      const t = new Date(h.startedAt).getTime();
+      return t >= cutoff;
+    });
+
+    saveHistory(trimmed);
+  }
+
+  function renderHistory() {
+    const history = loadHistory();
+    historyListEl.innerHTML = "";
+
+    if (history.length === 0) {
+      historyListEl.innerHTML = `<p class="history-empty">まだ履歴はありません。</p>`;
+      return;
+    }
+
+    const sorted = [...history].sort(
+      (a, b) => new Date(b.startedAt) - new Date(a.startedAt)
+    );
+
+    const ul = document.createElement("ul");
+    ul.className = "history-ul";
+
+    sorted.forEach((item) => {
+      const li = document.createElement("li");
+      li.className = "history-item";
+
+      const date = new Date(item.startedAt);
+      const dateStr = `${date.getFullYear()}/${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}/${String(date.getDate()).padStart(
+        2,
+        "0"
+      )} ${String(date.getHours()).padStart(2, "0")}:${String(
+        date.getMinutes()
+      ).padStart(2, "0")}`;
+
+      li.innerHTML = `
+        <div class="history-title">${item.title}</div>
+        <div class="history-meta">${dateStr}</div>
+      `;
+      ul.appendChild(li);
+    });
+
+    historyListEl.appendChild(ul);
+  }
+
+  // -------------------------------------------------------------------
+  // UIヘルパー
+  // -------------------------------------------------------------------
+  function showOnlyScreen(target) {
+    [selectScreen, countdownScreen, sprintScreen, doneScreen, historyScreen].forEach(
+      (sec) => sec && sec.classList.add("hidden")
+    );
+    if (target) target.classList.remove("hidden");
   }
 
   function formatTime(sec) {
@@ -59,198 +197,239 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
-  function clearAllTimers() {
+  function clearTimers() {
     if (countdownTimerId) clearInterval(countdownTimerId);
-    if (warmupTimerId)    clearInterval(warmupTimerId);
-    if (focusTimerId)     clearInterval(focusTimerId);
-    countdownTimerId = warmupTimerId = focusTimerId = null;
+    if (sprintTimerId) clearInterval(sprintTimerId);
+    countdownTimerId = sprintTimerId = null;
+
+    // アラーム停止
+    if (under1AlarmAudio) {
+      under1AlarmAudio.pause();
+      under1AlarmAudio.currentTime = 0;
+    }
   }
 
-  // タスクプレビュー（Task 1: ○○ / Task 2: △△…って下に出すだけ）
-  function updateTaskPreview() {
-    const t1 = task1Input.value.trim();
-    const t2 = task2Input.value.trim();
-    const t3 = task3Input.value.trim();
+  // タスクリスト表示（画面下の "Task 1: ..." リスト）
+  function renderTaskList() {
+    tasks = [
+      task1Input.value.trim(),
+      task2Input.value.trim(),
+      task3Input.value.trim(),
+    ];
+    taskListEl.innerHTML = "";
 
-    const text = [t1, t2, t3]
-      .map((t, i) => (t ? `Task ${i + 1}: ${t}` : ""))
-      .filter(Boolean)
-      .join(" / ");
+    const any = tasks.some((t) => t);
+    if (!any) return;
 
-    taskPreview.textContent = text;
+    const ul = document.createElement("ul");
+    ul.className = "task-list-ul";
+
+    tasks.forEach((t, i) => {
+      if (!t) return;
+      const li = document.createElement("li");
+      li.className = "task-item";
+      li.textContent = `Task ${i + 1}: ${t}`;
+      ul.appendChild(li);
+    });
+
+    taskListEl.appendChild(ul);
   }
 
-  // ===== Startボタン → フロー開始 =====
-  function onStartClick() {
-    const t1 = task1Input.value.trim();
-    const t2 = task2Input.value.trim();
-    const t3 = task3Input.value.trim();
+  // -------------------------------------------------------------------
+  // フロー
+  // -------------------------------------------------------------------
 
-    // 「タスク1」として使うのは Task1、なければ次の入力
-    currentTaskTitle = t1 || t2 || t3;
+  // Start Task 1 ボタン
+  function handleStartClick() {
+    tasks = [
+      task1Input.value.trim(),
+      task2Input.value.trim(),
+      task3Input.value.trim(),
+    ];
 
-    if (!currentTaskTitle) {
+    // 3つまでに制限 → そもそも入力欄が3つなのでUI上はOK
+    // ここでは「入力済みの中で一番上のタスク」からスタート
+    const idx = tasks.findIndex((t) => t);
+    if (idx === -1) {
       alert("タスクを1つ以上入力してね！");
       return;
     }
 
-    updateTaskPreview();
-    startCountdown();
+    currentIndex = idx;
+    currentTaskTitle = tasks[currentIndex];
+
+    // 履歴に「今日このタスクに着手した」ログを追加
+    addHistoryEntry(currentTaskTitle);
+
+    renderTaskList();
+    startCountdownPhase();
   }
 
-  // ===== 5秒カウントダウン =====
-  function startCountdown() {
-    clearAllTimers();
-    showScreen(countdownScreen);
+  // ① 5秒カウントダウン
+  function startCountdownPhase() {
+    clearTimers();
+    showOnlyScreen(countdownScreen);
 
-    countdownTaskLabel.textContent = `Starting: ${currentTaskTitle}`;
     let count = 5;
     countdownNumEl.textContent = String(count);
+    countdownLabelEl.textContent = `Starting: ${currentTaskTitle}`;
+
+    if (countdownAudio) {
+      countdownAudio.currentTime = 0;
+      countdownAudio.play().catch(() => {});
+    }
 
     countdownTimerId = setInterval(() => {
       count--;
       if (count <= 0) {
         clearInterval(countdownTimerId);
         countdownTimerId = null;
-        startWarmup();
+        startSprintPhase();
       } else {
         countdownNumEl.textContent = String(count);
       }
     }, 1000);
   }
 
-  // ===== 90秒カウント =====
-  function startWarmup() {
-    clearAllTimers();
-    showScreen(warmupScreen);
+  // ② 3分タイマー
+  function startSprintPhase() {
+    clearTimers();
+    showOnlyScreen(sprintScreen);
 
-    warmupTaskLabel.textContent = `"${currentTaskTitle}"`;
-    warmupRemaining = 90;
-    warmupTimeEl.textContent = formatTime(warmupRemaining);
+    currentTaskLabel.textContent = currentTaskTitle;
+    sprintRemaining = 180; // 3分
+    sprintNumEl.textContent = formatTime(sprintRemaining);
 
-    warmupTimerId = setInterval(() => {
-      warmupRemaining--;
-      if (warmupRemaining <= 0) {
-        clearInterval(warmupTimerId);
-        warmupTimerId = null;
-        showDecisionScreen();
-      } else {
-        warmupTimeEl.textContent = formatTime(warmupRemaining);
+    if (under1AlarmAudio) {
+      under1AlarmAudio.pause();
+      under1AlarmAudio.currentTime = 0;
+    }
+
+    sprintTimerId = setInterval(() => {
+      sprintRemaining--;
+
+      sprintNumEl.textContent = formatTime(sprintRemaining);
+
+      // 2分・1分のところでマーク音
+      if (sprintRemaining === 120 || sprintRemaining === 60) {
+        if (minuteMarkAudio) {
+          minuteMarkAudio.currentTime = 0;
+          minuteMarkAudio.play().catch(() => {});
+        }
+      }
+
+      // 残り59秒になった瞬間からアラームループ
+      if (sprintRemaining === 59) {
+        if (under1AlarmAudio) {
+          under1AlarmAudio.currentTime = 0;
+          under1AlarmAudio.loop = true;
+          under1AlarmAudio.play().catch(() => {});
+        }
+      }
+
+      if (sprintRemaining <= 0) {
+        clearInterval(sprintTimerId);
+        sprintTimerId = null;
+        finishSprint();
       }
     }, 1000);
   }
 
-  // ===== 90秒終了 → 選択画面 =====
-  function showDecisionScreen() {
-    clearAllTimers();
-    decisionMessageEl.textContent = `Good start! "${currentTaskTitle}"`;
-    showScreen(decisionScreen);
+  // ③ タスク完了（3分経過 or Doneボタン）
+  function finishSprint() {
+    clearTimers();
+    showOnlyScreen(doneScreen);
+
+    // 今日のカウントを1つ増やす（日本時間0時基準）
+    ensureTodayPoints();
+    pointsState.count += 1;
+    pointsState.date = getTodayString(); // 念のため
+    savePoints();
+
+    doneMessageEl.textContent = `Good job! "${currentTaskTitle}"`;
+    rewardAmountEl.textContent = String(pointsState.count);
+
+    // 今の3つの中で、残っているタスクがあるかどうか
+    const nextIndex = findNextTaskIndex(currentIndex + 1);
+    if (nextIndex !== -1) {
+      moreBtn.classList.remove("hidden");
+    } else {
+      moreBtn.classList.add("hidden");
+    }
   }
 
-  // ===== フォーカスタイマー画面 =====
-  function showFocusScreen() {
-    clearAllTimers();
-    showScreen(focusScreen);
-
-    focusTaskLabel.textContent = `Deep focus on "${currentTaskTitle}"`;
-
-    // 選択中ボタン反映
-    focusDurationBtns.forEach(btn => {
-      const min = Number(btn.dataset.min);
-      if (min === focusMinutes) {
-        btn.classList.add("is-selected");
-      } else {
-        btn.classList.remove("is-selected");
-      }
-    });
-
-    focusRemaining = focusMinutes * 60;
-    focusTimeEl.textContent = formatTime(focusRemaining);
-    focusStartBtn.disabled = false;
+  function findNextTaskIndex(fromIndex) {
+    for (let i = fromIndex; i < tasks.length; i++) {
+      if (tasks[i]) return i;
+    }
+    return -1;
   }
 
-  // ===== フォーカスタイマー開始 =====
-  function startFocusTimer() {
-    clearAllTimers();
-    focusStartBtn.disabled = true; // 連打防止
+  // Next → 同じ「3つのうち次のタスク」に進む
+  function handleMoreClick() {
+    const nextIndex = findNextTaskIndex(currentIndex + 1);
+    if (nextIndex === -1) {
+      // 3つすべて終わった → Today画面に戻って、次の3つを自分で設定できる
+      showOnlyScreen(selectScreen);
+      return;
+    }
 
-    focusRemaining = focusMinutes * 60;
-    focusTimeEl.textContent = formatTime(focusRemaining);
+    currentIndex = nextIndex;
+    currentTaskTitle = tasks[currentIndex];
 
-    focusTimerId = setInterval(() => {
-      focusRemaining--;
-      if (focusRemaining <= 0) {
-        clearInterval(focusTimerId);
-        focusTimerId = null;
-        focusTimeEl.textContent = "0:00";
-        alert("Focus time finished. Nice work!");
-        backToTop();
-      } else {
-        focusTimeEl.textContent = formatTime(focusRemaining);
-      }
-    }, 1000);
+    addHistoryEntry(currentTaskTitle);
+    startCountdownPhase();
   }
 
-  // ===== トップ（タスク入力画面）に戻る =====
-  function backToTop() {
-    clearAllTimers();
-    showScreen(selectScreen);
-    // 入力値はそのまま残す
-    updateTaskPreview();
+  // Finish → Today画面に戻る（まだ残っているタスクがあっても終了）
+  function handleFinishClick() {
+    clearTimers();
+    showOnlyScreen(selectScreen);
   }
 
-  // ============================
-  // イベント設定
-  // ============================
-  [task1Input, task2Input, task3Input].forEach(input => {
-    input.addEventListener("input", updateTaskPreview);
+  // -------------------------------------------------------------------
+  // タブ切り替え
+  // -------------------------------------------------------------------
+  function showTodayTab() {
+    tabToday.classList.add("tab--active");
+    tabHistory.classList.remove("tab--active");
+    showOnlyScreen(selectScreen);
+  }
+
+  function showHistoryTab() {
+    tabToday.classList.remove("tab--active");
+    tabHistory.classList.add("tab--active");
+    showOnlyScreen(historyScreen);
+    renderHistory();
+  }
+
+  // -------------------------------------------------------------------
+  // イベント登録
+  // -------------------------------------------------------------------
+  [task1Input, task2Input, task3Input].forEach((input) => {
+    input.addEventListener("input", renderTaskList);
   });
 
-  startBtn.addEventListener("click", onStartClick);
+  startBtn.addEventListener("click", handleStartClick);
+  doneBtn.addEventListener("click", finishSprint);
+  moreBtn.addEventListener("click", handleMoreClick);
+  finishBtn.addEventListener("click", handleFinishClick);
 
-  // 「止める」：ここで終了してトップに戻る
-  stopHereBtn.addEventListener("click", () => {
-    backToTop();
+  tabToday.addEventListener("click", showTodayTab);
+  tabHistory.addEventListener("click", showHistoryTab);
+
+  clearHistoryBtn.addEventListener("click", () => {
+    if (!confirm("履歴をすべて削除しますか？")) return;
+    saveHistory([]);
+    renderHistory();
   });
 
-  // 「終わる」：同じく終了扱い（今はトップに戻すだけ）
-  endBtn.addEventListener("click", () => {
-    backToTop();
-  });
-
-  // 「続ける」 → フォーカスタイマーへ
-  continueBtn.addEventListener("click", () => {
-    showFocusScreen();
-  });
-
-  // フォーカスタイマー：時間選択（10 / 15 / 30 / 60）
-  focusDurationBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const min = Number(btn.dataset.min);
-      if (!min) return;
-      focusMinutes = min;
-
-      focusDurationBtns.forEach(b => b.classList.remove("is-selected"));
-      btn.classList.add("is-selected");
-
-      // 未スタートなら表示も更新
-      if (!focusTimerId) {
-        focusRemaining = focusMinutes * 60;
-        focusTimeEl.textContent = formatTime(focusRemaining);
-      }
-    });
-  });
-
-  // フォーカスタイマー開始
-  focusStartBtn.addEventListener("click", () => {
-    startFocusTimer();
-  });
-
-  // 「Back」 → 90秒後の選択画面に戻る
-  focusBackBtn.addEventListener("click", () => {
-    showDecisionScreen();
-  });
-
-  // 初期表示
-  backToTop();
+  // -------------------------------------------------------------------
+  // 初期化
+  // -------------------------------------------------------------------
+  loadPoints();
+  rewardAmountEl.textContent = String(pointsState.count); // 「Points: X」に反映
+  renderTaskList();
+  showTodayTab();
+  renderHistory();
 });
