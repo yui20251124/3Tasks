@@ -1,0 +1,367 @@
+/* ============================
+   Base
+============================ */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: #f5f5f7;
+  color: #111827;
+  display: flex;
+  justify-content: center;
+}
+
+/* iPhone中央寄せ */
+.app {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e5e5ea;
+  border-right: 1px solid #e5e5ea;
+}
+
+/* ============================
+   Header
+============================ */
+header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e5e5ea;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e5e7eb, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-number {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.logo-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+}
+
+/* ============================
+   Main
+============================ */
+main {
+  flex: 1;
+  padding: 20px 18px 24px;
+}
+
+.hidden {
+  display: none;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+/* ============================
+   Task Input
+============================ */
+.task-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.task-input-area input[type="text"] {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  outline: none;
+  background: #f9fafb;
+  transition: 0.15s;
+}
+
+.task-input-area input[type="text"]:focus {
+  border-color: #0a84ff;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.24);
+}
+
+/* プレビュー */
+#taskPreview {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ============================
+   Buttons
+============================ */
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+#startBtn,
+#stopHereBtn,
+#continueBtn,
+#endBtn,
+.focus-duration-btn,
+#focusStartBtn,
+#focusBackBtn {
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+#startBtn {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#startBtn:active {
+  transform: translateY(1px);
+}
+
+/* ============================
+   Timer Screens (共通)
+============================ */
+#countdownScreen,
+#warmupScreen,
+#decisionScreen,
+#focusScreen {
+  text-align: center;
+  margin-top: 32px;
+}
+
+/* ============================
+   Countdown
+============================ */
+#countdownTaskLabel {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+#countdownNum {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* ============================
+   Warmup (90 sec)
+============================ */
+#warmupTaskLabel {
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+#warmupTime {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.hint-text {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 8px;
+}
+
+/* Timer ring */
+.timer-ring {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 10px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.timer-inner {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================
+   Decision Screen
+============================ */
+#decisionMessage {
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.decision-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#stopHereBtn,
+#continueBtn,
+#endBtn {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#stopHereBtn {
+  background: #f3f4f6;
+  color: #111827;
+}
+#stopHereBtn:hover {
+  background: #e5e7eb;
+}
+
+#continueBtn {
+  background: #111827;
+  color: #f9fafb;
+}
+#continueBtn:hover {
+  background: #020617;
+}
+
+#endBtn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+#endBtn:hover {
+  background: #fecaca;
+}
+
+/* ============================
+   Focus Timer
+============================ */
+#focusTaskLabel {
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.focus-duration-selector {
+  text-align: left;
+  margin-bottom: 14px;
+}
+
+.focus-duration-selector > span {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.focus-duration-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.focus-duration-btn {
+  flex: 1;
+  min-width: 65px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.focus-duration-btn.is-selected {
+  background: #111827;
+  color: #f9fafb;
+  border-color: #111827;
+}
+
+#focusTime {
+  font-size: 22px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* Focus timer buttons */
+.focus-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#focusStartBtn {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#focusBackBtn {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 14px;
+}
+
+#focusStartBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
