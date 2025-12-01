@@ -52,17 +52,33 @@ document.addEventListener("DOMContentLoaded", () => {
   let sprintTimerId    = null;
   let sprintRemaining  = 0; // 秒
 
-  // 今日のタスク完了カウント（1タスク = 1カウント）
-  const HISTORY_KEY = "threeTasks_history_v1";
-  const POINTS_KEY  = "threeTasks_points_v1"; // 今日の完了数
+  // localStorage key
+  const HISTORY_KEY        = "threeTasks_history_v1";
+  const POINTS_KEY         = "threeTasks_points_v1";         // 今日の完了数
+  const CURRENT_TASK_KEY   = "threeTasks_currentTask_v1";    // Start Taskの番号(1〜3)
+  const TASKS_INPUT_KEY    = "threeTasks_tasksInput_v1";     // 入力中タスク
 
+  // 今日のポイント
   let pointsState = {
     date: "",   // "YYYY-MM-DD"
     count: 0,   // 今日完了したタスク数
   };
 
+  // Startボタンで表示するタスク番号（1〜3）
+  let currentTaskNumber = Number(localStorage.getItem(CURRENT_TASK_KEY)) || 1;
+  if (currentTaskNumber < 1 || currentTaskNumber > 3) {
+    currentTaskNumber = 1;
+  }
+
   // -------------------------------------------------------------------
-  // 日付ヘルパー（日本時間前提：ユーザーが日本なら localTime でOK）
+  // Startボタンのラベル更新
+  // -------------------------------------------------------------------
+  function updateStartButtonLabel() {
+    startBtn.textContent = `Start Task ${currentTaskNumber}`;
+  }
+
+  // -------------------------------------------------------------------
+  // 日付ヘルパー（日本時間前提）
   // -------------------------------------------------------------------
   function getTodayString() {
     const d = new Date();
@@ -101,6 +117,31 @@ document.addEventListener("DOMContentLoaded", () => {
     if (pointsState.date !== today) {
       pointsState.date = today;
       pointsState.count = 0;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // タスク入力の保存 / 復元
+  // -------------------------------------------------------------------
+  function saveTasksInput() {
+    const data = {
+      t1: task1Input.value,
+      t2: task2Input.value,
+      t3: task3Input.value,
+    };
+    localStorage.setItem(TASKS_INPUT_KEY, JSON.stringify(data));
+  }
+
+  function loadTasksInput() {
+    const raw = localStorage.getItem(TASKS_INPUT_KEY);
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw) || {};
+      task1Input.value = data.t1 || "";
+      task2Input.value = data.t2 || "";
+      task3Input.value = data.t3 || "";
+    } catch (e) {
+      console.error("Failed to load tasks input:", e);
     }
   }
 
@@ -236,10 +277,35 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // -------------------------------------------------------------------
+  // 3つ全部終わったときのリセット
+  // -------------------------------------------------------------------
+  function resetAllTasks() {
+    // 入力欄を空に
+    task1Input.value = "";
+    task2Input.value = "";
+    task3Input.value = "";
+
+    // 状態リセット
+    tasks = ["", "", ""];
+    currentIndex = 0;
+
+    // 入力内容をlocalStorageからも空に（保存データをリセット）
+    saveTasksInput();
+
+    // Start Task を 1 に戻す
+    currentTaskNumber = 1;
+    localStorage.setItem(CURRENT_TASK_KEY, String(currentTaskNumber));
+
+    // 表示更新
+    renderTaskList();
+    updateStartButtonLabel();
+  }
+
+  // -------------------------------------------------------------------
   // フロー
   // -------------------------------------------------------------------
 
-  // Start Task 1 ボタン
+  // Start Task N ボタン
   function handleStartClick() {
     tasks = [
       task1Input.value.trim(),
@@ -247,15 +313,20 @@ document.addEventListener("DOMContentLoaded", () => {
       task3Input.value.trim(),
     ];
 
-    // 3つまでに制限 → そもそも入力欄が3つなのでUI上はOK
-    // ここでは「入力済みの中で一番上のタスク」からスタート
-    const idx = tasks.findIndex((t) => t);
-    if (idx === -1) {
-      alert("タスクを1つ以上入力してね！");
-      return;
+    // currentTaskNumber に対応するタスクを優先して使う
+    let targetIndex = currentTaskNumber - 1;
+
+    // そのスロットが空なら、最初の非空タスクを探す
+    if (!tasks[targetIndex]) {
+      const idx = tasks.findIndex((t) => t);
+      if (idx === -1) {
+        alert("タスクを1つ以上入力してね！");
+        return;
+      }
+      targetIndex = idx;
     }
 
-    currentIndex = idx;
+    currentIndex = targetIndex;
     currentTaskTitle = tasks[currentIndex];
 
     // 履歴に「今日このタスクに着手した」ログを追加
@@ -369,7 +440,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function handleMoreClick() {
     const nextIndex = findNextTaskIndex(currentIndex + 1);
     if (nextIndex === -1) {
-      // 3つすべて終わった → Today画面に戻って、次の3つを自分で設定できる
+      // 3つすべて終わった → リセットしてTodayへ
+      resetAllTasks();
       showOnlyScreen(selectScreen);
       return;
     }
@@ -381,9 +453,21 @@ document.addEventListener("DOMContentLoaded", () => {
     startCountdownPhase();
   }
 
-  // Finish → Today画面に戻る（まだ残っているタスクがあっても終了）
+  // Finish → Today画面に戻る
   function handleFinishClick() {
     clearTimers();
+
+    // まだ Task 1 / 2 の場合 → 番号だけ進める
+    if (currentTaskNumber < 3) {
+      currentTaskNumber += 1;
+      localStorage.setItem(CURRENT_TASK_KEY, String(currentTaskNumber));
+      updateStartButtonLabel();
+      showOnlyScreen(selectScreen);
+      return;
+    }
+
+    // Task 3 まで終わった → タスク内容リセット & Task1に戻す
+    resetAllTasks();
     showOnlyScreen(selectScreen);
   }
 
@@ -407,7 +491,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // イベント登録
   // -------------------------------------------------------------------
   [task1Input, task2Input, task3Input].forEach((input) => {
-    input.addEventListener("input", renderTaskList);
+    input.addEventListener("input", () => {
+      renderTaskList();
+      saveTasksInput(); // 入力が変わるたび保存
+    });
   });
 
   startBtn.addEventListener("click", handleStartClick);
@@ -428,8 +515,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // 初期化
   // -------------------------------------------------------------------
   loadPoints();
+  loadTasksInput();                 // 入力タスクの復元
   rewardAmountEl.textContent = String(pointsState.count); // 「Points: X」に反映
   renderTaskList();
+  updateStartButtonLabel();         // Start Task N の表示
   showTodayTab();
   renderHistory();
 });
